@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎬 Deploy a Three-Tier App on OpenShift User-Defined Networks
+#  Deploy a Three-Tier App on OpenShift User-Defined Networks
 
 **Prime Series and Movies** — an nginx frontend, a Python API and a MariaDB database,<br/>
 isolated with **ClusterUserDefinedNetworks** and a **NetworkPolicy**, packaged as a **Helm chart**<br/>
