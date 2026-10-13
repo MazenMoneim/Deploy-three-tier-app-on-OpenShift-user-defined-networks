@@ -49,18 +49,11 @@ and delivered by **Argo CD** from **GitLab**.
 
 ## 1. Architecture
 
-### 🗺️ Network topology
+###  Network topology
 
 ```mermaid
-flowchart LR
-  U["Users"]
-  N0(["Default network"])
-  FE["Frontend<br/>webapp-frontend"]
-  N1(["frontend-backend-net<br/>192.168.50.0/24"])
-  BE["Backend<br/>webapp-backend"]
-  N2(["webapp-cudn<br/>10.50.0.0/16"])
-  DB["Database<br/>webapp-database"]
-  U --- N0 --- FE --- N1 --- BE --- N2 --- DB
+<img width="2589" height="3056" alt="CamScanner 13-10-2026 15 54" src="https://github.com/user-attachments/assets/a415c39d-5c60-47b1-a61c-c9aef7357003" />
+
 
   classDef tier fill:#dbeafe,stroke:#1d4ed8,color:#0b1f3a
   classDef net fill:#f1f5f9,stroke:#64748b,color:#0f172a
@@ -70,16 +63,16 @@ flowchart LR
   class U user
 ```
 
-Read it left to right: each tier touches only the networks beside it. The frontend and the
+Each tier touches only the networks beside it. The frontend and the
 database never share a network, so the database can only be reached through the backend.
 
 | Network | Type | Subnet | Attached to | Purpose |
 |---|---|---|---|---|
-| ☁️ Cluster default network | OVN-Kubernetes default | cluster pod CIDR | `webapp-frontend` | Route traffic from the router to the frontend |
-| 🔒 `webapp-cudn` | **Primary** CUDN · Layer2 · persistent IPAM | `10.50.0.0/16` | namespaces labelled `app-tier=webapp` | Isolated network for backend ↔ database |
-| 🔗 `frontend-backend-net` | **Secondary** CUDN · Layer2 | `192.168.50.0/24` | `webapp-frontend`, `webapp-backend` (interface `net1`) | The only path from frontend to backend |
+|  Cluster default network | OVN-Kubernetes default | cluster pod CIDR | `webapp-frontend` | Route traffic from the router to the frontend |
+|  `webapp-cudn` | **Primary** CUDN · Layer2 · persistent IPAM | `10.50.0.0/16` | namespaces labelled `app-tier=webapp` | Isolated network for backend ↔ database |
+|  `frontend-backend-net` | **Secondary** CUDN · Layer2 | `192.168.50.0/24` | `webapp-frontend`, `webapp-backend` (interface `net1`) | The only path from frontend to backend |
 
-### 🔌 Interfaces inside each pod
+###  Interfaces inside each pod
 
 | Pod | Interface | Network | Address |
 |---|---|---|---|
@@ -89,7 +82,7 @@ database never share a network, so the database can only be reached through the 
 | `backend-api` | `net1` | `frontend-backend-net` | `192.168.50.y` |
 | `webapp-db-0` | `ovn-udn1` | `webapp-cudn` (primary) | `10.50.x.x` |
 
-### 🚦 Who can reach what
+###  Who can reach what
 
 | From | To | | Why |
 |---|---|:-:|---|
@@ -101,7 +94,7 @@ database never share a network, so the database can only be reached through the 
 | Backend (`app=backend-api`) | database `:3306` | ✅ | Same primary network, allowed by the NetworkPolicy |
 | Any other pod on `webapp-cudn` | database | ❌ | Blocked by NetworkPolicy `restrict-db-access` |
 
-### 🔁 A request, end to end
+###  A request, end to end
 
 | Step | From | To | Network |
 |:-:|---|---|---|
@@ -115,7 +108,7 @@ database never share a network, so the database can only be reached through the 
 > a Service name. The **upstream-sync** sidecar watches the backend pods and keeps nginx pointed
 > at their `192.168.50.x` addresses, so nothing is done by hand after a deploy or a restart.
 
-### 🚀 GitOps flow
+###  GitOps flow
 
 ```mermaid
 flowchart LR
@@ -204,7 +197,7 @@ oc get argocd -n openshift-gitops 2>/dev/null || echo "OpenShift GitOps not inst
 ```
 
 <details>
-<summary>📦 <b>Install the OpenShift GitOps operator</b> (skip if already installed)</summary>
+<summary> <b>Install the OpenShift GitOps operator</b> (skip if already installed)</summary>
 
 ```bash
 cat <<'EOF' | oc apply -f -
@@ -263,7 +256,7 @@ oc get route openshift-gitops-server -n openshift-gitops -o jsonpath='https://{.
 
 ## 4. The networks and how they are created
 
-### 🧱 Creation order (Argo CD sync waves)
+###  Creation order (Argo CD sync waves)
 
 ```mermaid
 flowchart LR
@@ -272,7 +265,7 @@ flowchart LR
   class A,B,C,D,E box
 ```
 
-### ⚙️ What happens when a CUDN is created
+###  What happens when a CUDN is created
 
 | Step | What happens |
 |:-:|---|
@@ -292,7 +285,7 @@ The chart renders the objects below. You don't apply them by hand when using Arg
 are here so you can see exactly what gets created.
 
 <details>
-<summary>📁 <b>4.1 Namespaces</b></summary>
+<summary> <b>4.1 Namespaces</b></summary>
 
 ```yaml
 apiVersion: v1
@@ -324,7 +317,7 @@ metadata:
 </details>
 
 <details>
-<summary>🔒 <b>4.2 Primary CUDN</b> — <code>webapp-cudn</code> for the backend and database</summary>
+<summary> <b>4.2 Primary CUDN</b> — <code>webapp-cudn</code> for the backend and database</summary>
 
 ```yaml
 apiVersion: k8s.ovn.org/v1
@@ -382,7 +375,7 @@ metadata:
 </details>
 
 <details>
-<summary>🛡️ <b>4.4 NetworkPolicy</b> — only the backend may reach the database</summary>
+<summary> <b>4.4 NetworkPolicy</b> — only the backend may reach the database</summary>
 
 ```yaml
 kind: NetworkPolicy
@@ -622,7 +615,7 @@ blocked with `app=something-else` and allowed with `app=backend-api`.
 
 ## 8. Day-2 operations
 
-### ✏️ Change anything through Git
+###  Change anything through Git
 
 ```bash
 sed -i 's/^  replicas: 2$/  replicas: 3/' charts/prime-app/values.yaml     # backend replicas
@@ -637,21 +630,21 @@ oc get pods -n webapp-backend -w
 > For instant syncs add a GitLab webhook: **Settings → Webhooks**, URL
 > `https://<argocd-server-route>/api/webhook`, trigger **Push events**.
 
-### 🩹 Watch self-heal undo a manual change
+###  Watch self-heal undo a manual change
 
 ```bash
 oc scale deploy/backend-api -n webapp-backend --replicas=5
 oc get deploy backend-api -n webapp-backend -w           # goes back to the value in Git
 ```
 
-### 🔄 Watch the sidecar follow the backend
+###  Watch the sidecar follow the backend
 
 ```bash
 oc delete pod -n webapp-backend -l app=backend-api --wait=false
 oc logs -n webapp-frontend deploy/frontend-web -c upstream-sync -f   # new IPs + "reloaded nginx"
 ```
 
-### ➕ Add a title straight in the database
+###  Add a title straight in the database
 
 ```bash
 oc exec -n webapp-database webapp-db-0 -- sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" mysql -h 127.0.0.1 -u "$MYSQL_USER" "$MYSQL_DATABASE" -e "
@@ -660,7 +653,7 @@ VALUES (17, \"movie\", \"Nile After Midnight\", 2026, 8.7, 109, \"Thriller,Drama
         \"A felucca captain witnesses something on the river that half of Cairo wants forgotten.\")"'
 ```
 
-### 🖼️ Real poster photos (optional)
+###  Real poster photos (optional)
 
 ```bash
 # posters/1.jpg ... posters/16.jpg, portrait 2:3, whole set under ~900 KB
@@ -692,7 +685,7 @@ Main settings in `charts/prime-app/values.yaml`:
 | `frontend.upstreamSync.intervalSeconds` | `10` | How often the sidecar checks the backend pods |
 
 <details>
-<summary>🔐 <b>Use your own Secrets instead of the lab passwords</b></summary>
+<summary> <b>Use your own Secrets instead of the lab passwords</b></summary>
 
 `values.yaml` holds lab passwords so the chart works out of the box. For anything real, create
 the Secrets yourself (Sealed Secrets, External Secrets, Vault…) and set
@@ -731,7 +724,7 @@ oc create secret generic my-backend-secret -n webapp-backend \
 | Health says `"database": "down"` | Backend can't reach MariaDB | `oc logs deploy/backend-api -n webapp-backend --tail=20`; check pod label `app=backend-api` |
 
 <details>
-<summary>🗄️ <b>Load the database schema by hand</b> (safe to repeat)</summary>
+<summary> <b>Load the database schema by hand</b> (safe to repeat)</summary>
 
 ```bash
 oc get configmap webapp-db-init -n webapp-database -o jsonpath='{.data.10-schema-and-seed\.sh}' |
@@ -765,6 +758,6 @@ oc delete secret repo-prime-app -n openshift-gitops
 
 <div align="center">
 
-Built with 🟥 OpenShift · 🔗 OVN-Kubernetes user-defined networks · ⛵ Helm · 🐙 Argo CD · 🦊 GitLab
+Built with  OpenShift · 🔗 OVN-Kubernetes user-defined networks · ⛵ Helm · 🐙 Argo CD · 🦊 GitLab
 
 </div>
