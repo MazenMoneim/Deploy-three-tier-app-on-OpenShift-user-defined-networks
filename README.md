@@ -443,6 +443,11 @@ oc get application prime-app -n openshift-gitops -o jsonpath='{.status.sync.stat
 
 In the Argo CD UI, the `prime-app` tile shows **Healthy** and **Synced**, with path `charts/prime-app` and namespace `webapp-frontend`.
 
+---
+<img width="1917" height="1008" alt="image" src="https://github.com/user-attachments/assets/991698a7-f050-4e5f-af25-56dc59059c70" />
+
+<img width="1916" height="1010" alt="image" src="https://github.com/user-attachments/assets/b543fb79-e704-4fe0-8d22-bbe6c404daec" />
+
 
 ---
 
