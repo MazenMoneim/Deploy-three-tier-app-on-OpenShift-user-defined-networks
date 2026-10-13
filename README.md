@@ -38,9 +38,10 @@ and delivered by **Argo CD** from **GitLab**.
 | 3 | [Prepare the environment](#3-prepare-the-environment) |
 | 4 | [The networks and how they are created](#4-the-networks-and-how-they-are-created) |
 | 5 | [Put the code in GitLab](#5-put-the-code-in-gitlab) |
-| 6 | [Verify](#7-verify) |
-| 7 | [Day-2 operations](#8-day-2-operations) |
-| 8 | [Troubleshooting](#10-troubleshooting) |
+| 6 | [Verify](#6-verify) |
+| 7 | [Day-2 operations](#7-day-2-operations) |
+| 8 | [Troubleshooting](#8-troubleshooting) |
+| 9 | [Application UI](#9-application-ui) |
 
 ---
 
@@ -545,6 +546,10 @@ oc logs -n webapp-frontend deploy/frontend-web -c upstream-sync -f   # new IPs +
 
 
 ---
+
+## 9. Application UI
+
+<img width="1916" height="1015" alt="image" src="https://github.com/user-attachments/assets/63431d5a-af6f-4c8c-aa94-7dcee550def5" />
 
 
 <div align="center">
