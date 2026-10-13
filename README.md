@@ -556,7 +556,7 @@ oc logs -n webapp-frontend deploy/frontend-web -c upstream-sync -f   # new IPs +
 
 <img width="1916" height="1015" alt="image" src="https://github.com/user-attachments/assets/63431d5a-af6f-4c8c-aa94-7dcee550def5" />
 
-
+---
 <div align="center">
 
 Built with  OpenShift · 🔗 OVN-Kubernetes user-defined networks · ⛵ Helm · 🐙 Argo CD · 🦊 GitLab
