@@ -51,16 +51,11 @@ and delivered by **Argo CD** from **GitLab**.
 
 ###  Network topology
 
-```mermaid
 <img width="2589" height="3056" alt="CamScanner 13-10-2026 15 54" src="https://github.com/user-attachments/assets/a415c39d-5c60-47b1-a61c-c9aef7357003" />
 
 
-  classDef tier fill:#dbeafe,stroke:#1d4ed8,color:#0b1f3a
-  classDef net fill:#f1f5f9,stroke:#64748b,color:#0f172a
-  classDef user fill:#ffffff,stroke:#94a3b8,color:#0f172a
-  class FE,BE,DB tier
-  class N0,N1,N2 net
-  class U user
+```mermaid
+
 ```
 
 Each tier touches only the networks beside it. The frontend and the
@@ -101,21 +96,9 @@ database never share a network, so the database can only be reached through the 
 | 1 | Browser | Route, then nginx in `frontend-web` | Default network |
 | 2 | nginx | `backend-api` on `192.168.50.y:8080` | `frontend-backend-net` |
 | 3 | `backend-api` | MariaDB on port `3306` | `webapp-cudn` |
-| — | `upstream-sync` sidecar | Kubernetes API, every 10 s | reads the backend pod IPs and updates nginx |
 
-> [!NOTE]
-> Secondary-network IPs are not behind any Service, so the frontend cannot reach the backend by
-> a Service name. The **upstream-sync** sidecar watches the backend pods and keeps nginx pointed
-> at their `192.168.50.x` addresses, so nothing is done by hand after a deploy or a restart.
 
-###  GitOps flow
 
-```mermaid
-flowchart LR
-  GH["GitHub"] --- GL["GitLab"] --- AR["Argo CD"] --- OC["OpenShift"]
-  classDef box fill:#f1f5f9,stroke:#64748b,color:#0f172a
-  class GH,GL,AR,OC box
-```
 
 ---
 
@@ -150,7 +133,6 @@ flowchart LR
 
 ## 3. Prepare the environment
 
-Tested on OpenShift 4.18. Run everything from a workstation logged in as cluster admin (`oc login ...`).
 
 ### 3.1 Check the cluster
 
@@ -169,75 +151,20 @@ The database needs a `ReadWriteOnce` volume.
 oc get storageclass          # one class should be marked (default)
 ```
 
-> [!IMPORTANT]
-> No default StorageClass? Set `database.storage.storageClassName` in `values.yaml`, or the
-> database PVC stays `Pending`.
 
-### 3.3 Check the images can be pulled
 
-Pods pull through the nodes, so test from a worker node. `registry.redhat.io` uses the
-cluster's global pull secret.
+### 3.3 Check installing OpenShift GitOps
 
 ```bash
-NODE=$(oc get nodes -l node-role.kubernetes.io/worker -o jsonpath='{.items[0].metadata.name}')
-for img in quay.io/redhattraining/hello-world-nginx:latest \
-           registry.access.redhat.com/ubi9/python-311:latest \
-           registry.redhat.io/rhel9/mariadb-105:latest; do
-  echo "== $img"
-  oc debug node/$NODE -q -- chroot /host crictl pull "$img" | tail -1
-done
+oc get argocd -n openshift-gitops
 ```
 
-Each line should end with `Image is up to date for ...`.
 
-### 3.4 Install OpenShift GitOps
-
-```bash
-oc get argocd -n openshift-gitops 2>/dev/null || echo "OpenShift GitOps not installed"
-```
-
-<details>
-<summary> <b>Install the OpenShift GitOps operator</b> (skip if already installed)</summary>
-
-```bash
-cat <<'EOF' | oc apply -f -
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: openshift-gitops-operator
----
-apiVersion: operators.coreos.com/v1
-kind: OperatorGroup
-metadata:
-  name: openshift-gitops-operator
-  namespace: openshift-gitops-operator
-spec:
-  upgradeStrategy: Default
----
-apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
-metadata:
-  name: openshift-gitops-operator
-  namespace: openshift-gitops-operator
-spec:
-  channel: latest
-  installPlanApproval: Automatic
-  name: openshift-gitops-operator
-  source: redhat-operators
-  sourceNamespace: openshift-marketplace
-EOF
-
-# wait for the default Argo CD instance
-until oc get argocd openshift-gitops -n openshift-gitops >/dev/null 2>&1; do sleep 10; done
-oc get pods -n openshift-gitops
-```
-
-</details>
 
 ### 3.5 Let your OpenShift user see applications in the Argo CD UI
 
 ```bash
-oc adm groups new cluster-admins 2>/dev/null
+oc adm groups new cluster-admins 
 oc adm groups add-users cluster-admins "$(oc whoami)"
 oc get argocd openshift-gitops -n openshift-gitops -o jsonpath='{.spec.rbac.policy}{"\n"}'
 # should contain: g, cluster-admins, role:admin
@@ -258,11 +185,10 @@ oc get route openshift-gitops-server -n openshift-gitops -o jsonpath='https://{.
 
 ###  Creation order (Argo CD sync waves)
 
+<img width="710" height="111" alt="image" src="https://github.com/user-attachments/assets/86d272ed-2958-40a0-8183-c4329837da11" />
+
+
 ```mermaid
-flowchart LR
-  A["1 · Namespaces"] --- B["2 · Networks"] --- C["3 · Database"] --- D["4 · Backend"] --- E["5 · Frontend"]
-  classDef box fill:#f1f5f9,stroke:#64748b,color:#0f172a
-  class A,B,C,D,E box
 ```
 
 ###  What happens when a CUDN is created
@@ -277,15 +203,14 @@ flowchart LR
 
 > [!WARNING]
 > The `k8s.ovn.org/primary-user-defined-network` label only works if it is on the namespace
-> **when the namespace is created** — it cannot be added later. And the primary CUDN must exist
+> **when the namespace is created**, it cannot be added later. And the primary CUDN must exist
 > **before** pods start, otherwise they stay on the default network. The sync waves take care
 > of both.
 
-The chart renders the objects below. You don't apply them by hand when using Argo CD — they
+The chart renders the objects below. You don't apply them by hand when using Argo CD, they
 are here so you can see exactly what gets created.
 
-<details>
-<summary> <b>4.1 Namespaces</b></summary>
+### 4.1 Namespaces
 
 ```yaml
 apiVersion: v1
@@ -314,10 +239,9 @@ metadata:
     k8s.ovn.org/primary-user-defined-network: ""
 ```
 
-</details>
+### 4.2 Primary CUDN
 
-<details>
-<summary> <b>4.2 Primary CUDN</b> — <code>webapp-cudn</code> for the backend and database</summary>
+`webapp-cudn` for the backend and database.
 
 ```yaml
 apiVersion: k8s.ovn.org/v1
@@ -338,10 +262,9 @@ spec:
         lifecycle: Persistent
 ```
 
-</details>
+### 4.3 Secondary CUDN
 
-<details>
-<summary>🔗 <b>4.3 Secondary CUDN</b> — <code>frontend-backend-net</code> for the frontend and backend</summary>
+`frontend-backend-net` for the frontend and backend.
 
 ```yaml
 apiVersion: k8s.ovn.org/v1
@@ -372,10 +295,9 @@ metadata:
     k8s.v1.cni.cncf.io/networks: frontend-backend-net
 ```
 
-</details>
+### 4.4 NetworkPolicy
 
-<details>
-<summary> <b>4.4 NetworkPolicy</b> — only the backend may reach the database</summary>
+Only the backend may reach the database.
 
 ```yaml
 kind: NetworkPolicy
@@ -397,8 +319,6 @@ spec:
               app: backend-api
 ```
 
-</details>
-
 ### 4.5 Check the networks after deployment
 
 ```bash
@@ -406,53 +326,96 @@ oc get clusteruserdefinednetworks
 oc get network-attachment-definitions -A | grep -E 'webapp-cudn|frontend-backend-net'
 oc get ns webapp-frontend webapp-backend webapp-database --show-labels
 
-# interfaces and IPs of every pod
-for ns in webapp-frontend webapp-backend webapp-database; do
-  echo "== $ns"
-  oc get pods -n $ns -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{.metadata.annotations.k8s\.v1\.cni\.cncf\.io/network-status}{"\n"}{end}'
-done
 ```
 
-> [!CAUTION]
-> In some labs the machine network is also `192.168.50.0/24`. From inside the frontend and
-> backend pods, lab hosts in that range are then reached through `net1` and fail. This app never
-> contacts lab hosts from those pods, but if you can choose, use e.g. `192.168.60.0/24`
-> (`networks.secondary.subnet`).
 
 ---
 
-## 5. Put the code in GitLab
+## 5. Deploy with an Argo CD Application
 
-### 5.1 Create the GitLab project
+The app lives in GitLab (`root/prime-app`) and Argo CD pulls the Helm chart from `charts/prime-app`.
 
-In GitLab (`https://gitlab.apps.ocp4.example.com`): **New project → Create blank project**, name
-`prime-app`, namespace `root`, and **untick "Initialize repository with a README"**.
+### 5.1 Give Argo CD access to the repo
 
-### 5.2 Create two tokens
+The project is private and the lab uses a self-signed certificate, so register the repo first. Save this as `prime-app-repo.yaml`:
 
-**User settings → Access → Personal access tokens → Generate token → Fine-grained token**
-
-| Token | Used by | Resource | Permissions |
-|---|---|---|---|
-| `workstation-push` | you, for `git push` | project `root/prime-app` | **Code: Download** + **Code: Push** |
-| `argocd-read` | Argo CD | project `root/prime-app` | **Code: Download** |
-
-> [!TIP]
-> Instead of `argocd-read` you can use a project **deploy token**
-> (**Settings → Repository → Deploy tokens**, scope `read_repository`). GitLab then gives you a
-> username such as `gitlab+deploy-token-1`. Copy each token straight away — it is shown once.
-
-### 5.3 Clone from GitHub and push to GitLab
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prime-app-repo
+  namespace: openshift-gitops
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://gitlab.apps.ocp4.example.com/root/prime-app.git
+  username: <gitlab-user-or-deploy-token-username>
+  password: <read-only-token>
+  insecure: "true"      # lab self-signed certificate
+```
 
 ```bash
-git clone https://github.com/<github-user>/Deploy-three-tier-app-on-OpenShift-user-defined-networks.git prime-app
-cd prime-app
-
-git remote add gitlab https://root@gitlab.apps.ocp4.example.com/root/prime-app.git
-git config http.https://gitlab.apps.ocp4.example.com/.sslVerify false   # lab self-signed cert
-
-git push -u gitlab main          # Password: the workstation-push token
+oc apply -f prime-app-repo.yaml
 ```
+
+### 5.2 Create the Application
+
+Save this as `prime-app-application.yaml`:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prime-app
+  namespace: openshift-gitops
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://gitlab.apps.ocp4.example.com/root/prime-app.git
+    targetRevision: main
+    path: charts/prime-app
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+```
+
+```bash
+oc apply -f prime-app-application.yaml
+```
+
+Notes:
+
+- The Application lives in `openshift-gitops`. The chart's resources land in `webapp-frontend`, `webapp-backend` and `webapp-database`, because each manifest sets its own namespace.
+- `ClusterUserDefinedNetwork` is cluster-scoped, so the default `openshift-gitops` instance (cluster-admin) is the right one to use.
+- The sync order from section 4 comes from this annotation on each resource in the chart:
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"   # 1 Namespaces, 2 Networks, 3 Database, 4 Backend, 5 Frontend
+```
+
+### 5.3 Check the sync
+
+```bash
+oc get application prime-app -n openshift-gitops
+oc get ns webapp-frontend webapp-backend webapp-database
+oc get clusteruserdefinednetwork
+```
+
+Or open the Argo CD UI and look at the `prime-app` tile. It should end up `Synced` and `Healthy`.
 
 ---
 
