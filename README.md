@@ -1,36 +1,35 @@
 <div align="center">
 
-#  Deploy a Three-Tier App on OpenShift User-Defined Networks
+#  Deploy a Three-Tier App on OpenShift using User-Defined Networks
 
-**Prime Series and Movies** — an nginx **frontend**, a Python API **backend** and a MariaDB *database**,<br/>
+**Prime Series and Movies** components: Nginx **frontend**, Python API **backend** and MariaDB **database**,<br/>
 isolated with **ClusterUserDefinedNetworks** and a **NetworkPolicy**, packaged as a **Helm chart**<br/>
 and delivered by **Argo CD** from **GitLab**.
 
-![OpenShift](https://img.shields.io/badge/OpenShift-4.18-EE0000?logo=redhatopenshift&logoColor=white)
+![OpenShift](https://img.shields.io/badge/OpenShift-EE0000?logo=redhatopenshift&logoColor=white)
 ![OVN-Kubernetes](https://img.shields.io/badge/OVN--Kubernetes-UDN%20%2F%20CUDN-2F6FEB)
 ![Helm](https://img.shields.io/badge/Helm-3-0F1689?logo=helm&logoColor=white)
 ![Argo CD](https://img.shields.io/badge/Argo%20CD-OpenShift%20GitOps-EF7B4D?logo=argo&logoColor=white)
 ![GitLab](https://img.shields.io/badge/GitLab-source%20of%20truth-FC6D26?logo=gitlab&logoColor=white)
-![MariaDB](https://img.shields.io/badge/MariaDB-10.5-003545?logo=mariadb&logoColor=white)
-![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![MariaDB](https://img.shields.io/badge/MariaDB-003545?logo=mariadb&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
 ![nginx](https://img.shields.io/badge/nginx-frontend-009639?logo=nginx&logoColor=white)
 
 </div>
 
 ---
 
-## 📌 At a glance
+## Components
 
 | | Tier | Namespace | Runs | Networks |
 |:-:|---|---|---|---|
-| 🌐 | **Frontend** | `webapp-frontend` | nginx + `upstream-sync` sidecar | default network · `frontend-backend-net` |
-| ⚙️ | **Backend** | `webapp-backend` | Python API × 2 | `webapp-cudn` (primary) · `frontend-backend-net` |
-| 🗄️ | **Database** | `webapp-database` | MariaDB StatefulSet + PVC | `webapp-cudn` (primary) |
+| 🌐 | **Frontend** | `webapp-frontend` | Nginx | default network · `frontend-backend-net` |
+| ⚙️ | **Backend** | `webapp-backend` | Python API | `webapp-cudn` (primary) · `frontend-backend-net` |
+| 🗄️ | **Database** | `webapp-database` | MariaDB StatefulSet  | `webapp-cudn` (primary) |
 
-> [!TIP]
-> Every command in this guide is copy-and-paste. Replace values written as `<like-this>` with your own.
+---
 
-## 🧭 Contents
+## Contents
 
 | Step | Section |
 |:-:|---|
