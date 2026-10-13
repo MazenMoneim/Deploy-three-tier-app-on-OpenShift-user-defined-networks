@@ -21,11 +21,11 @@ and delivered by **Argo CD** from **GitLab**.
 
 ## Components
 
-| | Tier | Namespace | Runs | Networks |
-|:-:|---|---|---|---|
-| 🌐 | **Frontend** | `webapp-frontend` | Nginx | default network · `frontend-backend-net` |
-| ⚙️ | **Backend** | `webapp-backend` | Python API | `webapp-cudn` (primary) · `frontend-backend-net` |
-| 🗄️ | **Database** | `webapp-database` | MariaDB StatefulSet  | `webapp-cudn` (primary) |
+| Tier | Namespace | Runs | Networks |
+|---|---|---|---|
+| **Frontend** | `webapp-frontend` | Nginx | `default network` (primary) and `frontend-backend-net` |
+| **Backend** | `webapp-backend` | Python API | `webapp-cudn`     (primary) and `frontend-backend-net` |
+| **Database** | `webapp-database` | MariaDB StatefulSet  | `webapp-cudn`    (primary) |
 
 ---
 
@@ -38,12 +38,9 @@ and delivered by **Argo CD** from **GitLab**.
 | 3 | [Prepare the environment](#3-prepare-the-environment) |
 | 4 | [The networks and how they are created](#4-the-networks-and-how-they-are-created) |
 | 5 | [Put the code in GitLab](#5-put-the-code-in-gitlab) |
-| 6 | [Connect Argo CD and deploy](#6-connect-argo-cd-and-deploy) |
-| 7 | [Verify](#7-verify) |
-| 8 | [Day-2 operations](#8-day-2-operations) |
-| 9 | [Configuration reference](#9-configuration-reference) |
-| 10 | [Troubleshooting](#10-troubleshooting) |
-| 11 | [Clean up](#11-clean-up) |
+| 6 | [Verify](#7-verify) |
+| 7 | [Day-2 operations](#8-day-2-operations) |
+| 8 | [Troubleshooting](#10-troubleshooting) |
 
 ---
 
@@ -51,7 +48,7 @@ and delivered by **Argo CD** from **GitLab**.
 
 ###  Network topology
 
-<img width="2589" height="3056" alt="CamScanner 13-10-2026 15 54" src="https://github.com/user-attachments/assets/a415c39d-5c60-47b1-a61c-c9aef7357003" />
+<img width="2589" height="3056" alt="CamScanner 13-10-2026 15 54" src="https://github.com/user-attachments/assets/40ff7369-02c4-47ad-8d47-317611849a57" />
 
 
 ```mermaid
@@ -64,14 +61,14 @@ database never share a network, so the database can only be reached through the 
 | Network | Type | Subnet | Attached to | Purpose |
 |---|---|---|---|---|
 |  Cluster default network | OVN-Kubernetes default | cluster pod CIDR | `webapp-frontend` | Route traffic from the router to the frontend |
-|  `webapp-cudn` | **Primary** CUDN · Layer2 · persistent IPAM | `10.50.0.0/16` | namespaces labelled `app-tier=webapp` | Isolated network for backend ↔ database |
-|  `frontend-backend-net` | **Secondary** CUDN · Layer2 | `192.168.50.0/24` | `webapp-frontend`, `webapp-backend` (interface `net1`) | The only path from frontend to backend |
+|  `webapp-cudn` | **Primary** CUDN · Layer2  | `10.50.0.0/16` | namespaces labelled `app-tier=webapp` | Isolated network for backend ↔ database |
+|  `frontend-backend-net` | **Secondary** CUDN · Layer2 | `192.168.50.0/24` | `webapp-frontend`, `webapp-backend` | The only path from frontend to backend |
 
 ###  Interfaces inside each pod
 
 | Pod | Interface | Network | Address |
 |---|---|---|---|
-| `frontend-web` | `eth0` | Default network | cluster pod CIDR |
+| `frontend-web` | `eth0` | `Default network` | cluster pod CIDR |
 | `frontend-web` | `net1` | `frontend-backend-net` | `192.168.50.x` |
 | `backend-api` | `ovn-udn1` | `webapp-cudn` (primary) | `10.50.x.x` |
 | `backend-api` | `net1` | `frontend-backend-net` | `192.168.50.y` |
@@ -107,7 +104,6 @@ database never share a network, so the database can only be reached through the 
 ```
 .
 ├── README.md                    this guide
-├── .gitlab-ci.yml               helm lint + template on every push
 ├── argocd/
 │   ├── application.yaml         Argo CD Application (Helm source)
 │   ├── rbac.yaml                lets Argo CD manage the CUDNs
@@ -116,8 +112,7 @@ database never share a network, so the database can only be reached through the 
 │   ├── Chart.yaml
 │   ├── values.yaml              images, namespaces, networks, credentials, route
 │   ├── files/
-│   │   ├── frontend/            index.html, style.css, app.js, art.js, config.js,
-│   │   │                        nginx.conf, upstream_sync.py
+│   │   ├── frontend/            index.html, style.css, app.js, art.js, config.js, nginx.conf, upstream_sync.py
 │   │   ├── backend/             app.py, PyMySQL wheel
 │   │   └── database/            10-schema-and-seed.sh, 99-webapp.cnf
 │   └── templates/
@@ -139,7 +134,7 @@ database never share a network, so the database can only be reached through the 
 ```bash
 oc version
 oc get network.config cluster -o jsonpath='{.status.networkType}{"\n"}'     # OVNKubernetes
-oc get crd clusteruserdefinednetworks.k8s.ovn.org                           # CUDN API present
+oc get clusteruserdefinednetworks.k8s.ovn.org                               # CUDN present
 oc get nodes
 ```
 
@@ -153,7 +148,7 @@ oc get storageclass          # one class should be marked (default)
 
 
 
-### 3.3 Check installing OpenShift GitOps
+### 3.3 Check installing OpenShift GitOps and ArgoCD
 
 ```bash
 oc get argocd -n openshift-gitops
@@ -188,8 +183,6 @@ oc get route openshift-gitops-server -n openshift-gitops -o jsonpath='https://{.
 <img width="710" height="111" alt="image" src="https://github.com/user-attachments/assets/86d272ed-2958-40a0-8183-c4329837da11" />
 
 
-```mermaid
-```
 
 ###  What happens when a CUDN is created
 
@@ -331,27 +324,27 @@ oc get ns webapp-frontend webapp-backend webapp-database --show-labels
 
 ---
 
-## 5. Deploy with an Argo CD Application
+## 5. Deploy the Helm chart with Argo CD
 
-The app lives in GitLab (`root/prime-app`) and Argo CD pulls the Helm chart from `charts/prime-app`.
+Argo CD pulls the Helm chart from GitLab (`root/prime-app`, path `charts/prime-app`) and deploys it to the cluster.
 
-### 5.1 Give Argo CD access to the repo
+### 5.1 Register the repository in Argo CD
 
-The project is private and the lab uses a self-signed certificate, so register the repo first. Save this as `prime-app-repo.yaml`:
+Save as `prime-app-repo.yaml`:
 
 ```yaml
 apiVersion: v1
 kind: Secret
 metadata:
-  name: prime-app-repo
+  name: repo-prime-app
   namespace: openshift-gitops
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
   url: https://gitlab.apps.ocp4.example.com/root/prime-app.git
-  username: <gitlab-user-or-deploy-token-username>
-  password: <read-only-token>
+  username: root
+  password: <argocd-read-token>
   insecure: "true"      # lab self-signed certificate
 ```
 
@@ -359,96 +352,11 @@ stringData:
 oc apply -f prime-app-repo.yaml
 ```
 
-### 5.2 Create the Application
+### 5.2 Let Argo CD manage the CUDNs
 
-Save this as `prime-app-application.yaml`:
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: prime-app
-  namespace: openshift-gitops
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
-spec:
-  project: default
-  source:
-    repoURL: https://gitlab.apps.ocp4.example.com/root/prime-app.git
-    targetRevision: main
-    path: charts/prime-app
-    helm:
-      valueFiles:
-        - values.yaml
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: openshift-gitops
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - ServerSideApply=true
-```
-
-```bash
-oc apply -f prime-app-application.yaml
-```
-
-Notes:
-
-- The Application lives in `openshift-gitops`. The chart's resources land in `webapp-frontend`, `webapp-backend` and `webapp-database`, because each manifest sets its own namespace.
-- `ClusterUserDefinedNetwork` is cluster-scoped, so the default `openshift-gitops` instance (cluster-admin) is the right one to use.
-- The sync order from section 4 comes from this annotation on each resource in the chart:
+The `argocd.argoproj.io/managed-by` label on each namespace covers the namespaced objects. The cluster-scoped CUDNs need extra RBAC. Save as `prime-app-rbac.yaml`:
 
 ```yaml
-metadata:
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"   # 1 Namespaces, 2 Networks, 3 Database, 4 Backend, 5 Frontend
-```
-
-### 5.3 Check the sync
-
-```bash
-oc get application prime-app -n openshift-gitops
-oc get ns webapp-frontend webapp-backend webapp-database
-oc get clusteruserdefinednetwork
-```
-
-Or open the Argo CD UI and look at the `prime-app` tile. It should end up `Synced` and `Healthy`.
-
----
-
-## 6. Connect Argo CD and deploy
-
-### 6.1 Test the Argo CD token
-
-```bash
-git -c http.sslVerify=false ls-remote \
-  https://root:'<argocd-read-token>'@gitlab.apps.ocp4.example.com/root/prime-app.git
-```
-
-It must list `refs/heads/main` (with a deploy token, use its username instead of `root`).
-
-### 6.2 Register the repository in Argo CD
-
-```bash
-oc create secret generic repo-prime-app -n openshift-gitops \
-  --from-literal=type=git \
-  --from-literal=url=https://gitlab.apps.ocp4.example.com/root/prime-app.git \
-  --from-literal=username=root \
-  --from-literal=password='<argocd-read-token>' \
-  --from-literal=insecure=true
-oc label secret repo-prime-app -n openshift-gitops argocd.argoproj.io/secret-type=repository
-```
-
-### 6.3 Let Argo CD manage the CUDNs
-
-Namespaced objects are covered by the `argocd.argoproj.io/managed-by` label the chart puts on
-each namespace; the cluster-scoped CUDNs need this:
-
-```bash
-cat <<'EOF' | oc apply -f -
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -473,13 +381,17 @@ subjects:
   - kind: ServiceAccount
     name: openshift-gitops-argocd-application-controller
     namespace: openshift-gitops
-EOF
 ```
 
-### 6.4 Create the Application
-
 ```bash
-cat <<'EOF' | oc apply -f -
+oc apply -f prime-app-rbac.yaml
+```
+
+### 5.3 Create the Application
+
+Save as `prime-app-application.yaml`:
+
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -511,47 +423,47 @@ spec:
         duration: 10s
         factor: 2
         maxDuration: 3m
-EOF
 ```
 
-### 6.5 Watch the sync
+```bash
+oc apply -f prime-app-application.yaml
+```
+
+The chart creates the resources in the order set by each resource's `argocd.argoproj.io/sync-wave` annotation: 1 Namespaces, 2 Networks, 3 Database, 4 Backend, 5 Frontend.
+
+### 5.4 Watch the sync
 
 ```bash
 oc get application prime-app -n openshift-gitops -w       # wait for Synced / Healthy
 
 # details, or the error if it is stuck
-oc get application prime-app -n openshift-gitops \
-  -o jsonpath='{.status.sync.status}{" / "}{.status.health.status}{"\n"}{.status.conditions[*].message}{"\n"}'
+oc get application prime-app -n openshift-gitops -o jsonpath='{.status.sync.status}{" / "}{.status.health.status}{"\n"}{.status.conditions[*].message}{"\n"}'
 ```
 
-> [!NOTE]
-> The first sync takes a few minutes. One or two `forbidden` retries at the start are normal
-> while the GitOps operator grants Argo CD access to the new namespaces.
+In the Argo CD UI, the `prime-app` tile shows **Healthy** and **Synced**, with path `charts/prime-app` and namespace `webapp-frontend`.
+
 
 ---
 
-## 7. Verify
+## 6. Verify
 
-### 7.1 Argo CD
+### 6.1 Argo CD
 
 ```bash
 oc get application prime-app -n openshift-gitops
-oc get application prime-app -n openshift-gitops \
-  -o jsonpath='{range .status.resources[*]}{.kind}{"\t"}{.namespace}{"\t"}{.name}{"\t"}{.status}{"\t"}{.health.status}{"\n"}{end}' | column -t
+oc get application prime-app -n openshift-gitops -o jsonpath='{range .status.resources[*]}{.kind}{"\t"}{.namespace}{"\t"}{.name}{"\t"}{.status}{"\t"}{.health.status}{"\n"}{end}' | column -t
 ```
 
-### 7.2 Pods
+### 6.2 Pods
 
 ```bash
 oc get pods -n webapp-database     # webapp-db-0            1/1 Running
-oc get pods -n webapp-backend      # backend-api-...  x2    1/1 Running
-oc get pods -n webapp-frontend     # frontend-web-...       2/2 Running  (nginx + upstream-sync)
+oc get pods -n webapp-backend      # backend-api-...        1/1 Running
+oc get pods -n webapp-frontend     # frontend-web-...       2/2 Running 
 
-oc logs -n webapp-frontend deploy/frontend-web -c upstream-sync
-# ... backend upstream -> 192.168.50.x, 192.168.50.y
 ```
 
-### 7.3 End to end
+### 6.3 End to end
 
 ```bash
 HOST=$(oc get route prime-series-movies -n webapp-frontend -o jsonpath='{.spec.host}')
@@ -560,10 +472,9 @@ curl -s "http://$HOST/api/health"; echo
 # {"status": "ok", "database": "up", ..., "titles": 16}
 ```
 
-The site footer reads **"Backend connected: 16 titles from MariaDB 10.5"**. Save a title to
-*My list*, reload — it is still there, stored in the database.
 
-### 7.4 Every network path
+
+### 6.4 Every network path
 
 ```bash
 chmod +x scripts/verify-tiers.sh
@@ -576,7 +487,7 @@ blocked with `app=something-else` and allowed with `app=backend-api`.
 
 ---
 
-## 8. Day-2 operations
+## 7. Day-2 operations
 
 ###  Change anything through Git
 
@@ -589,9 +500,7 @@ oc annotate application prime-app -n openshift-gitops argocd.argoproj.io/refresh
 oc get pods -n webapp-backend -w
 ```
 
-> [!TIP]
-> For instant syncs add a GitLab webhook: **Settings → Webhooks**, URL
-> `https://<argocd-server-route>/api/webhook`, trigger **Push events**.
+
 
 ###  Watch self-heal undo a manual change
 
@@ -607,117 +516,36 @@ oc delete pod -n webapp-backend -l app=backend-api --wait=false
 oc logs -n webapp-frontend deploy/frontend-web -c upstream-sync -f   # new IPs + "reloaded nginx"
 ```
 
-###  Add a title straight in the database
 
-```bash
-oc exec -n webapp-database webapp-db-0 -- sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" mysql -h 127.0.0.1 -u "$MYSQL_USER" "$MYSQL_DATABASE" -e "
-INSERT INTO titles (id, kind, title, year, rating, minutes, genres, plot)
-VALUES (17, \"movie\", \"Nile After Midnight\", 2026, 8.7, 109, \"Thriller,Drama\",
-        \"A felucca captain witnesses something on the river that half of Cairo wants forgotten.\")"'
-```
-
-###  Real poster photos (optional)
-
-```bash
-# posters/1.jpg ... posters/16.jpg, portrait 2:3, whole set under ~900 KB
-oc create configmap frontend-posters -n webapp-frontend --from-file=posters/
-oc rollout restart deployment/frontend-web -n webapp-frontend
-```
 
 ---
 
-## 9. Configuration reference
 
-Main settings in `charts/prime-app/values.yaml`:
 
-| Key | Default | Meaning |
+## 8. Troubleshooting
+
+| Errors Example | Cause | Fix |
 |---|---|---|
-| `namespaces.frontend / backend / database` | `webapp-frontend` / `webapp-backend` / `webapp-database` | Namespaces for the three tiers |
-| `namespaces.argocdManagedBy` | `openshift-gitops` | Argo CD instance allowed to manage them (`""` to skip) |
-| `networks.primary.subnet` | `10.50.0.0/16` | `webapp-cudn` subnet |
-| `networks.secondary.subnet` | `192.168.50.0/24` | `frontend-backend-net` subnet |
-| `database.image` | `registry.redhat.io/rhel9/mariadb-105:latest` | MariaDB image |
-| `database.storage.size / storageClassName` | `5Gi` / `""` (default class) | Database volume |
-| `database.existingSecret` | `""` | Use your own DB Secret instead of the chart's |
-| `backend.image` | `registry.access.redhat.com/ubi9/python-311:latest` | API image |
-| `backend.replicas` | `2` | Backend pods |
-| `backend.existingSecret` | `""` | Use your own backend Secret instead of the chart's |
-| `frontend.image` | `quay.io/redhattraining/hello-world-nginx:latest` | nginx image |
-| `frontend.route.name` | `prime-series-movies` | Route name |
-| `frontend.route.tls.enabled` | `false` | `true` = edge TLS with HTTP → HTTPS redirect |
-| `frontend.upstreamSync.intervalSeconds` | `10` | How often the sidecar checks the backend pods |
-
-<details>
-<summary> <b>Use your own Secrets instead of the lab passwords</b></summary>
-
-`values.yaml` holds lab passwords so the chart works out of the box. For anything real, create
-the Secrets yourself (Sealed Secrets, External Secrets, Vault…) and set
-`database.existingSecret` and `backend.existingSecret`:
-
-```bash
-oc create secret generic my-db-secret -n webapp-database \
-  --from-literal=MYSQL_USER=primeapp --from-literal=MYSQL_PASSWORD='<password>' \
-  --from-literal=MYSQL_ROOT_PASSWORD='<root-password>' --from-literal=MYSQL_DATABASE=primedb
-oc create secret generic my-backend-secret -n webapp-backend \
-  --from-literal=DB_USER=primeapp --from-literal=DB_PASSWORD='<password>'
-```
-
-</details>
-
----
-
-## 10. Troubleshooting
-
-| Symptom | Cause | Fix |
-|---|---|---|
-| `ErrImagePull … lookup <registry>: no such host` | Registry name from another environment | Use images the nodes can reach ([3.3](#33-check-the-images-can-be-pulled)) |
+| `ErrImagePull … lookup <registry>: no such host` | Registry name from another environment | Use images the nodes can reach  |
 | `x509: certificate is valid for git.ocp4.example.com, not registry…` | Registry port missing, so port 443 (Git server) was hit | Add the port, e.g. `registry.ocp4.example.com:8443/...` |
 | `unauthorized: access to the requested resource is not authorized` | Image not in that registry, or private | Check the path; Quay answers "unauthorized" for missing repos too |
 | `This repo requires terms acceptance and is only available on registry.redhat.io` | RHEL image requested from `registry.access.redhat.com` | Use `registry.redhat.io/...` (global pull secret) |
 | `CreateContainerError … does not resolve to an image ID` | Broken image entry in CRI-O storage on the node | `oc debug node/<node> -- chroot /host crictl rmi <image>` then delete the pod |
 | `Table 'primedb.titles' doesn't exist` | Schema not loaded | The StatefulSet's postStart hook loads it on start; see the command below |
 | PVC `data-webapp-db-0` stays `Pending` | No default StorageClass | Set `database.storage.storageClassName` |
-| `git push`: `HTTP Basic: Access denied` | Password used instead of a token | Use a personal access token ([5.2](#52-create-two-tokens)) |
+| `git push`: `HTTP Basic: Access denied` | Password used instead of a token | Use a personal access token  |
 | `git push`: `requires … permissions: [Code: Push]` / `[Code: Download]` | Fine-grained token missing a permission | Add **Code: Push** and **Code: Download** |
 | `! [rejected] main -> main (fetch first)` | GitLab project was created with a README | `git pull gitlab main --allow-unrelated-histories --no-rebase -X ours --no-edit`, then push |
-| Argo CD UI shows no applications | User not in `cluster-admins` | [3.5](#35-let-your-openshift-user-see-applications-in-the-argo-cd-ui), then log out and in |
-| Application `Unknown`: `failed to list refs: authentication required` | Wrong token or repository Secret | Test with `git ls-remote` ([6.1](#61-test-the-argo-cd-token)) and recreate the Secret |
+| Argo CD UI shows no applications | User not in `cluster-admins` | , then log out and in |
+| Application `Unknown`: `failed to list refs: authentication required` | Wrong token or repository Secret | Test with `git ls-remote`  and recreate the Secret |
 | First sync: `… is forbidden: User "system:serviceaccount:openshift-gitops:…"` | Namespaces just created, RBAC not granted yet | Wait for the retry; check the `argocd.argoproj.io/managed-by` label |
 | Site footer: "Backend not reachable" | No ready backend pods, or sidecar can't list them | `oc logs deploy/frontend-web -c upstream-sync -n webapp-frontend` |
 | Health says `"database": "down"` | Backend can't reach MariaDB | `oc logs deploy/backend-api -n webapp-backend --tail=20`; check pod label `app=backend-api` |
 
-<details>
-<summary> <b>Load the database schema by hand</b> (safe to repeat)</summary>
 
-```bash
-oc get configmap webapp-db-init -n webapp-database -o jsonpath='{.data.10-schema-and-seed\.sh}' |
-  oc exec -i -n webapp-database webapp-db-0 -- bash -c \
-  'export MYSQL_PWD="$MYSQL_PASSWORD"; mysql_flags="-h 127.0.0.1 -u $MYSQL_USER"; source /dev/stdin'
-```
-
-</details>
 
 ---
 
-## 11. Clean up
-
-> [!WARNING]
-> Namespaces and CUDNs are marked `Prune=false,Delete=false`, so deleting the Application alone
-> keeps them — and the database volume. The commands below remove **everything**, including the data.
-
-```bash
-oc delete application prime-app -n openshift-gitops
-
-# namespaces first (removes all workloads and the database PVC), then the networks
-oc delete namespace webapp-frontend webapp-backend webapp-database
-oc delete clusteruserdefinednetwork frontend-backend-net webapp-cudn
-
-oc delete clusterrolebinding prime-app-argocd
-oc delete clusterrole prime-app-argocd
-oc delete secret repo-prime-app -n openshift-gitops
-```
-
----
 
 <div align="center">
 
